@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+* { box-sizing: border-box; }
+body { background: #f7f8fc; color: #172b4d; }
+button, input, textarea, select { font: inherit; }

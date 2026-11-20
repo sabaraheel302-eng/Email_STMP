@@ -1,0 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { loginSchema } from '@/lib/validation';
+import { makeSession, originAllowed, sessionCookie } from '@/lib/auth';
+export async function POST(req:NextRequest) { if(!originAllowed(req)) return NextResponse.json({error:'Invalid origin'},{status:403}); const parsed=loginSchema.safeParse(await req.json().catch(()=>null)); if(!parsed.success) return NextResponse.json({error:'Enter your password'},{status:400}); const expected=process.env.APP_PASSWORD; if(!expected) return NextResponse.json({error:'APP_PASSWORD is not configured on the server'},{status:503}); if(parsed.data.password!==expected) return NextResponse.json({error:'Incorrect password'},{status:401}); const res=NextResponse.json({ok:true}); res.cookies.set(sessionCookie(await makeSession())); return res; }

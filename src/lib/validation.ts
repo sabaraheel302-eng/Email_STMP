@@ -1,0 +1,4 @@
+import { z } from 'zod';
+const address = z.string().trim().email().max(254);
+export const loginSchema = z.object({ password: z.string().min(1).max(256) });
+export const mailSchema = z.object({ to: z.array(address).min(1).max(50), cc: z.array(address).max(50).default([]), bcc: z.array(address).max(50).default([]), subject: z.string().trim().min(1).max(998), text: z.string().max(100000).default(''), html: z.string().max(100000).default(''), attachments: z.array(z.object({filename:z.string().min(1).max(180).regex(/^[^\r\n]+$/),contentType:z.string().max(120),content:z.string().max(7_000_000),size:z.number().int().nonnegative().max(5_000_000)})).max(5).default([]) }).refine(v => v.text.trim().length > 0 || v.html.trim().length > 0, {message:'Email body is required'});
