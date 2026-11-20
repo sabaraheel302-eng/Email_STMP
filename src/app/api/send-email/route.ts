@@ -3,6 +3,7 @@ import {apiAuth,originAllowed} from '@/lib/auth';
 import {mailSchema} from '@/lib/validation';
 import {saveEmail} from '@/lib/database';
 import {sendMail,safeHtml} from '@/lib/mailer';
+import {inlineTemplateAssets} from '@/lib/inline-template-assets';
 import type {EmailRecord} from '@/types/email';
 
 const attempts=new Map<string,{n:number;at:number}>();
@@ -27,7 +28,8 @@ export async function POST(req:NextRequest){
   const senderName=data.senderName?.trim()||'';
   const base:EmailRecord={id:crypto.randomUUID(),to:data.to,cc:data.cc,bcc:data.bcc,subject:data.subject,text:data.text,html:safeHtml(data.html),sender:senderName?`${senderName} <${smtpUser}>`:smtpUser,createdAt:new Date().toISOString(),status:'failed',templateId:data.templateId,templateName:data.templateName,attachments:data.attachments.map(a=>a.filename)};
   try{
-    const info=await sendMail(data);
+    const prepared=await inlineTemplateAssets(data.html);
+    const info=await sendMail({...data,html:prepared.html},prepared.attachments);
     base.status='accepted';base.messageId=info.messageId;await saveEmail(base);
     return NextResponse.json({email:base,message:'Accepted by Gmail SMTP. This confirms handoff to Gmail, not recipient delivery.'});
   }catch(e){
