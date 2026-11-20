@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS email_templates (
 CREATE TABLE IF NOT EXISTS email_template_assets (
   id UUID PRIMARY KEY,
   content_type TEXT NOT NULL,
+  filename TEXT NOT NULL DEFAULT '',
   alt_text TEXT NOT NULL DEFAULT '',
   data BYTEA NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE email_template_assets ADD COLUMN IF NOT EXISTS filename TEXT NOT NULL DEFAULT '';
