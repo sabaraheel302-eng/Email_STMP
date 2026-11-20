@@ -1,5 +1,6 @@
 import type {TemplateDraft} from '@/types/template';
 export const defaultTemplate: TemplateDraft = {
+  senderName:'',senderEmail:'',preheader:'Your email verification request has been received.',
   name:'Bilingual service notice', companyName:'[Company name]', logoUrl:'', logoAlt:'[Company name] logo', englishName:'[Company name]', arabicName:'[اسم الشركة]',
   subject:'Your verification code: {{verification_code}}',
   englishBody:'Dear {{user_name}},\n\nThank you for using our electronic services.\n\nYour email verification code is {{verification_code}}. It expires in {{verification_expiry}}.\n\nIf you did not request this verification, contact us at {{support_email}} or {{support_phone}}.',
