@@ -1,0 +1,4 @@
+import {NextRequest,NextResponse} from 'next/server';
+import {apiAuth} from '@/lib/auth';
+import {getFormSubmissionFile} from '@/lib/database';
+export async function GET(req:NextRequest,{params}:{params:{id:string}}){if(!(await apiAuth(req)))return NextResponse.json({error:'Unauthorized'},{status:401});if(!/^[0-9a-f-]{36}$/i.test(params.id))return new NextResponse('Not found',{status:404});try{const file=await getFormSubmissionFile(params.id);if(!file)return new NextResponse('Not found',{status:404});return new NextResponse(new Uint8Array(file.data),{headers:{'Content-Type':file.content_type,'Content-Disposition':`attachment; filename="${file.filename.replace(/["\\\r\n]/g,'_')}"`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}})}catch{return new NextResponse('Unavailable',{status:503})}}

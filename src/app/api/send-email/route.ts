@@ -1,9 +1,10 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {apiAuth,originAllowed} from '@/lib/auth';
 import {mailSchema} from '@/lib/validation';
-import {saveEmail} from '@/lib/database';
+import {getTemplate,saveEmail} from '@/lib/database';
 import {sendMail,safeHtml} from '@/lib/mailer';
 import {inlineTemplateAssets} from '@/lib/inline-template-assets';
+import {renderActionRequest} from '@/lib/email-template';
 import type {EmailRecord} from '@/types/email';
 
 const attempts=new Map<string,{n:number;at:number}>();
@@ -26,10 +27,17 @@ export async function POST(req:NextRequest){
   const smtpUser=process.env.SMTP_USER||'';
   if(data.senderEmail&&data.senderEmail.toLowerCase()!==smtpUser.toLowerCase())return NextResponse.json({error:'Sender email must match the configured SMTP_USER address.'},{status:400});
   const senderName=data.senderName?.trim()||'';
-  const base:EmailRecord={id:crypto.randomUUID(),to:data.to,cc:data.cc,bcc:data.bcc,subject:data.subject,text:data.text,html:safeHtml(data.html),sender:senderName?`${senderName} <${smtpUser}>`:smtpUser,createdAt:new Date().toISOString(),status:'failed',templateId:data.templateId,templateName:data.templateName,attachments:data.attachments.map(a=>a.filename)};
+  const base:EmailRecord={id:crypto.randomUUID(),to:data.to,cc:data.cc,bcc:data.bcc,subject:data.subject,text:data.text,html:safeHtml(data.html),sender:senderName?`${senderName} <${smtpUser}>`:smtpUser,createdAt:new Date().toISOString(),status:'failed',templateId:data.templateId,templateName:data.templateName,attachments:data.attachments.map(a=>a.filename),actionRequest:data.actionRequest};
   try{
-    const prepared=await inlineTemplateAssets(data.html);
-    const info=await sendMail({...data,html:prepared.html},prepared.attachments);
+    const selectedTemplate=data.actionRequest?.enabled&&data.templateId?await getTemplate(data.templateId):undefined;
+    const actionHtml=renderActionRequest(data.actionRequest,{},base.id,selectedTemplate?.primaryColor);
+    const actionUrl=data.actionRequest?.enabled?(()=>{const url=new URL(data.actionRequest!.url);url.searchParams.set('campaign',base.id);return url.toString()})():'';
+    const actionText=data.actionRequest?.enabled?`\n\n${[data.actionRequest.titleEn,data.actionRequest.descriptionEn,data.actionRequest.reasonEn,data.actionRequest.instructionsEn,data.actionRequest.buttonEn,actionUrl,data.actionRequest.deadline?`Deadline: ${data.actionRequest.deadline}`:'',data.actionRequest.reference?`Reference: ${data.actionRequest.reference}`:''].filter(Boolean).join('\n\n')}`:'';
+    const contentHtml=data.html+actionHtml;
+    if(hasNonHttpsImage(contentHtml))return NextResponse.json({error:'Email images need HTTPS image addresses.'},{status:400});
+    base.html=safeHtml(contentHtml);base.text=data.text+actionText;
+    const prepared=await inlineTemplateAssets(contentHtml);
+    const info=await sendMail({...data,text:base.text,html:prepared.html},prepared.attachments);
     base.status='accepted';base.messageId=info.messageId;await saveEmail(base);
     return NextResponse.json({email:base,message:'Accepted by Gmail SMTP. This confirms handoff to Gmail, not recipient delivery.'});
   }catch(e){
